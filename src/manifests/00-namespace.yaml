@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: batch-jobs
+  labels:
+    app.kubernetes.io/name: batch-orchestration
+    app.kubernetes.io/part-of: mainframe-batch-modernization

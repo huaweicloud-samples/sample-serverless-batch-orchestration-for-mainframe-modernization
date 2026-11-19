@@ -1,0 +1,7 @@
+# Runtime dependencies of the batch container.
+#
+# The client library of the object storage service carries its own HTTP
+# dependency; nothing else is needed. Reading, transforming and writing the
+# records is done by the standard library, so the attack surface of the image
+# stays as small as a run-once job can make it.
+esdk-obs-python==3.26.6

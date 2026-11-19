@@ -1,0 +1,68 @@
+# Access model of the batch namespace.
+#
+#  * batch-orchestrator  - identity used by the orchestration layer to create
+#                          and observe jobs. It can only touch jobs and pods
+#                          inside this namespace.
+#  * batch-job-runner    - identity mounted into the batch containers. It holds
+#                          no permission at all: the containers reach the data
+#                          lake through the cluster agency, not through the
+#                          Kubernetes API.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: batch-orchestrator
+  namespace: batch-jobs
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: batch-job-runner
+  namespace: batch-jobs
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: batch-orchestrator
+  namespace: batch-jobs
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "get", "list", "watch", "patch", "delete"]
+  - apiGroups: ["batch"]
+    resources: ["jobs/status"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: batch-orchestrator
+  namespace: batch-jobs
+subjects:
+  - kind: ServiceAccount
+    name: batch-orchestrator
+    namespace: batch-jobs
+roleRef:
+  kind: Role
+  name: batch-orchestrator
+  apiGroup: rbac.authorization.k8s.io
+---
+# Long lived token of the orchestration identity. The API issues it once and
+# keeps it until the secret is deleted, which is what lets a short lived
+# function pass address the cluster without holding a user credential.
+# Rotate it by deleting and recreating this secret, then re-run the deployment.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: batch-orchestrator-token
+  namespace: batch-jobs
+  annotations:
+    kubernetes.io/service-account.name: batch-orchestrator
+type: kubernetes.io/service-account-token
