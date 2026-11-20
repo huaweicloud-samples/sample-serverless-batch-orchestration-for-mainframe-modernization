@@ -1,0 +1,103 @@
+# Copy this file to terraform.tfvars and adjust the values.
+# Never commit terraform.tfvars.
+
+# ---------------------------------------------------------------------------
+# Operator credentials are normally exported to the environment instead:
+#   export HW_ACCESS_KEY=<your-access-key>
+#   export HW_SECRET_KEY=<your-secret-key>
+# Leave these empty unless you must pass them explicitly.
+# ---------------------------------------------------------------------------
+# access_key = ""
+# secret_key = ""
+
+environment = "dev"
+name_prefix = "batch"
+
+# Mailbox that receives run failures. Leave empty to skip the subscription;
+# the topic is created either way and the alarms publish into it.
+notification_email = ""
+
+# ---------------------------------------------------------------------------
+# Data window
+# ---------------------------------------------------------------------------
+schedule_timezone         = "Asia/Shanghai"
+daily_cron                = "0 0 2 * * ?"  # second minute hour day month weekday
+resume_interval_seconds   = 180
+max_input_age_days        = 2
+
+# ---------------------------------------------------------------------------
+# Container platform. Every sizing decision is explicit here.
+# ---------------------------------------------------------------------------
+cluster_spec = "cce.s1.small"
+
+node_flavor           = "c7.large.2"   # 2 vCPU / 4 GiB, x86_64
+node_count            = 2
+node_os               = "Huawei Cloud EulerOS 2.0"
+node_root_volume_size = 40
+node_root_volume_type = "SAS"
+node_data_volume_size = 100
+node_data_volume_type = "SAS"
+
+# Worker node sign-in: the platform requires either a key pair name or a
+# password, so exactly one of the two has to be filled in. Prefer the
+# environment over committing a value here.
+#   export TF_VAR_node_password="<placeholder>"
+node_pool_key_pair = ""            # name of an imported key pair
+node_password      = ""            # sensitive; leave empty when using a key pair
+
+# Batch container sizing, one slot per running job.
+job_cpu_request    = "500m"
+job_memory_request = "1Gi"
+job_cpu_limit      = "1"
+job_memory_limit   = "2Gi"
+
+# Elastic lane for runs that exceed the node pool.
+cci_enabled           = true
+cci_namespace_type    = "general-computing"
+cci_pod_network_cidr  = "10.20.3.0/24"
+
+# Set to true only when kubectl has to reach the API server from outside the VPC.
+enable_api_server_public_access = false
+api_server_bandwidth_mbitps     = 5
+
+# ---------------------------------------------------------------------------
+# Image
+# ---------------------------------------------------------------------------
+swr_organization = "batch-modernization"
+swr_repository   = "batch-stub"
+swr_image_tag    = "1.0.0"
+
+# ---------------------------------------------------------------------------
+# Agency roles
+# ---------------------------------------------------------------------------
+# Object storage, image registry, cluster, monitoring and notification roles are
+# wired by the stack. Append the project scoped roles your runtime integrations
+# need, after confirming their exact names in the IAM console.
+agency_extra_roles = []
+
+# ---------------------------------------------------------------------------
+# Kubernetes access, filled after the first apply
+# ---------------------------------------------------------------------------
+# 1. terraform apply                      # creates the cluster
+# 2. kubectl apply -f src/manifests/00-namespace.yaml \
+#                  -f src/manifests/10-rbac.yaml \
+#                  -f src/manifests/20-batch-config-configmap.yaml
+#    (30-batch-job-template.yaml is a template: it is rendered per run, never applied)
+# 3. ../src/job/export_k8s_access.sh      # prints the three values below
+# 4. terraform apply                      # injects them into the function
+job_namespace            = "batch-jobs"
+k8s_api_server           = ""
+k8s_ca_cert              = ""
+k8s_service_account_token = ""
+
+# ---------------------------------------------------------------------------
+# Observability
+# ---------------------------------------------------------------------------
+log_retention_days                = 30
+enable_custom_metrics             = true
+# Cloud Eye rejects alarm rules bound to a custom metric namespace, so the two
+# alarms are not created by this stack. Recreate them in the Cloud Eye console
+# with the identical metric, dimensions and threshold.
+enable_ces_alarms                 = false
+duration_alarm_threshold_seconds  = 1800
+failure_alarm_suppression_minutes = 15

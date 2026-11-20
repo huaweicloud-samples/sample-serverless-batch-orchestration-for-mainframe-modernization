@@ -1,0 +1,72 @@
+# Job template of a batch step: one job per step of a run.
+#
+# This file is the readable shape of a step job, not an object the deployment
+# applies. The orchestration layer builds the same specification itself, as
+# JSON, in job_body() of src/functions/orchestrator/index.py, and fills the
+# fields that carry the token names below from the run that is advancing.
+#
+# Sizing mirrors the capacity contract of a batch slot: one core and two
+# gibibytes, requested at half a core so two slots fit on a worker node.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: __JOB_NAME__
+  namespace: __NAMESPACE__
+  labels:
+    batch.job/run-id: __RUN_ID__
+    batch.job/task: __TASK__
+    app.kubernetes.io/name: batch-stub
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: __DEADLINE__
+  ttlSecondsAfterFinished: __TTL__
+  template:
+    metadata:
+      labels:
+        batch.job/run-id: __RUN_ID__
+        batch.job/task: __TASK__
+    spec:
+      serviceAccountName: __SERVICE_ACCOUNT__
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      containers:
+        - name: batch-job
+          image: __IMAGE__
+          imagePullPolicy: IfNotPresent
+          args:
+            - __TASK__
+          env:
+            # Per run values. Everything that is constant for the deployment
+            # arrives from the batch-config map below.
+            - name: OBS_PREFIX
+              value: "__PREFIX__"
+            - name: RUN_ID
+              value: "__RUN_ID__"
+          envFrom:
+            - configMapRef:
+                name: batch-config
+            # Object storage keys for the run. Optional so that a namespace without
+            # the secret still starts the pod; the container then reports the missing
+            # data access itself. Create it with:
+            #   kubectl -n batch-jobs create secret generic batch-obs-credentials \
+            #     --from-literal=HW_ACCESS_KEY=<key> --from-literal=HW_SECRET_KEY=<secret>
+            - secretRef:
+                name: batch-obs-credentials
+                optional: true
+          resources:
+            requests:
+              cpu: __CPU_REQUEST__
+              memory: __MEMORY_REQUEST__
+            limits:
+              cpu: __CPU_LIMIT__
+              memory: __MEMORY_LIMIT__
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          readOnlyRootFilesystem: false
+      securityContext:
+        fsGroup: 10001

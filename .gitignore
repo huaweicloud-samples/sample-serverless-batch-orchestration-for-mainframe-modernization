@@ -1,0 +1,33 @@
+# Local state and build products
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+infra/.build/
+build/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+*.egg-info/
+
+# Editors and operating system
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Local notes and credentials
+*.local
+.env
+.env.*
